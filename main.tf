@@ -1,23 +1,12 @@
-terraform {
-  required_providers {
-    aws = {
-        source = "hashicorp/aws"
-        version = "5.77.0"
-    }
-  }
-}
-
-provider "aws" {
-  
-}
-
+# VPC creation
 resource "aws_vpc" "atharva_vpc" {
-  cidr_block = "10.0.0.0/16"
+  cidr_block = var.vpc_cidr
   tags = {
     Name = "atharva-vpc"
   }
 }
 
+# Internet Gateway creation
 resource "aws_internet_gateway" "atharva_vpc_igw" {
   vpc_id = aws_vpc.atharva_vpc.id
   tags = {
@@ -25,9 +14,10 @@ resource "aws_internet_gateway" "atharva_vpc_igw" {
   }
 }
 
+# Subnet creation
 resource "aws_subnet" "atharva_vpc_public_sub" {
   vpc_id = aws_vpc.atharva_vpc.id
-  cidr_block = "10.0.1.0/24"
+  cidr_block = var.pub_sub_cidr
   map_public_ip_on_launch = "true"
   availability_zone = "ap-south-1a"
   tags = {
@@ -37,13 +27,14 @@ resource "aws_subnet" "atharva_vpc_public_sub" {
 
 resource "aws_subnet" "atharva_vpc_private_sub" {
   vpc_id = aws_vpc.atharva_vpc.id
-  cidr_block = "10.0.2.0/24"
+  cidr_block = var.priv_sub_cidr
   availability_zone = "ap-south-1b"
   tags = {
     Name = "atharva-vpc-private-sub"
   }
 }
 
+# Route table creation
 resource "aws_route_table" "atharva_vpc_public_rt" {
   vpc_id = aws_vpc.atharva_vpc.id
   route {
@@ -55,6 +46,8 @@ resource "aws_route_table" "atharva_vpc_public_rt" {
   }
 }
 
+
+# Route table association
 resource "aws_route_table_association" "name" {
   subnet_id = aws_subnet.atharva_vpc_public_sub.id
   route_table_id = aws_route_table.atharva_vpc_public_rt.id
