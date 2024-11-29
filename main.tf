@@ -109,3 +109,28 @@ resource "aws_vpc_security_group_egress_rule" "allow_all_traffic" {
   cidr_ipv4 = "0.0.0.0/0"
   ip_protocol = "-1"
 }
+
+# Launch instance
+resource "aws_instance" "public_web_srv" {
+  ami = "ami-0614680123427b75e"
+  instance_type = "t2.micro"
+  subnet_id = aws_subnet.atharva_vpc_public_sub.id
+  tags = {
+    Name = "linux-web-srv"
+  }
+  vpc_security_group_ids = [
+    aws_security_group.atharva_vpc_sg.id
+  ]
+}
+
+resource "aws_instance" "private_db_srv" {
+  ami = "ami-0614680123427b75e"
+  instance_type = "t2.micro"
+  subnet_id = aws_subnet.atharva_vpc_private_sub.id
+  tags = {
+    Name = "linux-wdb-srv"
+  }
+  vpc_security_group_ids = [
+    aws_security_group.atharva_vpc_sg.id
+  ]
+}
