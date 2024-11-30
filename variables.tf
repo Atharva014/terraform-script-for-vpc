@@ -1,4 +1,9 @@
-variable "vpc_cidr" {
+variable "aws_region" {
+  type = string
+  default = "ap-south-1"
+}
+
+variable "vpc_cidr_block" {
   default = "10.0.0.0/16"
   type = string
   description = "CIDR for VPC"
@@ -10,8 +15,29 @@ variable "pub_sub_cidr" {
   description = "CIDR for public subnet"
 }
 
-variable "priv_sub_cidr" {
-  default = "10.0.2.0/24"
+variable "pub_sub_az" {
+  default = "ap-south-1a"
   type = string
-  description = "CIDR for private subnet"
+  description = "AZ for public subnet"
 }
+
+variable "root_volume_size" {
+  type = number
+  default = 10
+}
+
+variable "additional_volume_size" {
+  type = number
+  default = 5
+}
+
+variable "no_of_instance" {
+  type = number
+  default = 2
+}
+
+variable "no_of_ebs_per_instance" {
+  type = number
+  default = 2
+}
+

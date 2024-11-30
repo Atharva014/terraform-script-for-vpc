@@ -1,6 +1,6 @@
 # VPC creation
 resource "aws_vpc" "atharva_vpc" {
-  cidr_block = var.vpc_cidr
+  cidr_block = var.vpc_cidr_block
   tags = {
     Name = "atharva-vpc"
   }
@@ -19,36 +19,11 @@ resource "aws_subnet" "atharva_vpc_public_sub" {
   vpc_id = aws_vpc.atharva_vpc.id
   cidr_block = var.pub_sub_cidr
   map_public_ip_on_launch = "true"
-  availability_zone = "ap-south-1a"
+  availability_zone = var.pub_sub_az
   enable_resource_name_dns_a_record_on_launch = true
   tags = {
     Name = "atharva-vpc-public-sub"
   }
-}
-
-resource "aws_subnet" "atharva_vpc_private_sub" {
-  vpc_id = aws_vpc.atharva_vpc.id
-  cidr_block = var.priv_sub_cidr
-  availability_zone = "ap-south-1b"
-  enable_resource_name_dns_a_record_on_launch = true
-  tags = {
-    Name = "atharva-vpc-private-sub"
-  }
-}
-
-# Elastic ip creation
-resource "aws_eip" "atharva_vpc_eip" {
-  domain = "vpc"
-}
-
-# NAT getway creation
-resource "aws_nat_gateway" "atharva_vpc_ngw" {
-  allocation_id = aws_eip.atharva_vpc_eip.id
-  subnet_id = aws_subnet.atharva_vpc_public_sub.id
-  tags = {
-    Name = "atharva-vpc-bgw"
-  }
-  depends_on = [ aws_internet_gateway.atharva_vpc_igw ]
 }
 
 # Route table creation
@@ -63,26 +38,10 @@ resource "aws_route_table" "atharva_vpc_public_rt" {
   }
 }
 
-resource "aws_route_table" "atharva_vpc_private_rt" {
-  vpc_id = aws_vpc.atharva_vpc.id
-  route {
-    cidr_block = "0.0.0.0/0"
-    gateway_id = aws_nat_gateway.atharva_vpc_ngw.id
-  }
-  tags = {
-    Name = "atharva-vpc-private-rt"
-  }
-}
-
 # Route table association
 resource "aws_route_table_association" "pub_rt_association" {
   subnet_id = aws_subnet.atharva_vpc_public_sub.id
   route_table_id = aws_route_table.atharva_vpc_public_rt.id
-}
-
-resource "aws_route_table_association" "pri_rt_association" {
-  subnet_id = aws_subnet.atharva_vpc_private_sub.id
-  route_table_id = aws_route_table.atharva_vpc_private_rt.id
 }
 
 # Security Group creation
@@ -112,25 +71,38 @@ resource "aws_vpc_security_group_egress_rule" "allow_all_traffic" {
 
 # Launch instance
 resource "aws_instance" "public_web_srv" {
+  count = var.no_of_instance
   ami = "ami-0614680123427b75e"
   instance_type = "t2.micro"
   subnet_id = aws_subnet.atharva_vpc_public_sub.id
+  key_name = "linux-key"
   tags = {
-    Name = "linux-web-srv"
+    Name = "linux-web-srv-${count.index + 1}"
   }
   vpc_security_group_ids = [
     aws_security_group.atharva_vpc_sg.id
   ]
+  root_block_device {
+    volume_size = var.root_volume_size
+    volume_type = "gp2"
+  }
 }
 
-resource "aws_instance" "private_db_srv" {
-  ami = "ami-0614680123427b75e"
-  instance_type = "t2.micro"
-  subnet_id = aws_subnet.atharva_vpc_private_sub.id
+# Create additional volume
+resource "aws_ebs_volume" "additional_vol" {
+  count = var.no_of_instance * (var.no_of_ebs_per_instance - 1)
+  availability_zone = var.pub_sub_az
+  size = var.additional_volume_size
+  type = "gp2"
   tags = {
-    Name = "linux-wdb-srv"
+    Name = "additional-volume-${count.index + 1}"
   }
-  vpc_security_group_ids = [
-    aws_security_group.atharva_vpc_sg.id
-  ]
+}
+
+# Attach volume to instance
+resource "aws_volume_attachment" "attach_volume" {
+  count = var.no_of_instance * (var.no_of_ebs_per_instance - 1)
+  volume_id = aws_ebs_volume.additional_vol[count.index].id
+  instance_id = aws_instance.public_web_srv[floor(count.index / (var.no_of_ebs_per_instance - 1))].id
+  device_name = "/dev/xvd${element(["f", "g", "h", "i", "j", "k", "l", "m", "n", "o"], count.index % (var.no_of_ebs_per_instance - 1))}"
 }
